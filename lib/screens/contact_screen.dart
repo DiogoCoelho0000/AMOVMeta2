@@ -14,8 +14,8 @@ class ContactScreen extends StatefulWidget {
 class _ContactScreenState extends State<ContactScreen> {
   // Lista de contatos mock para testar
   List<Contact> _contacts = [
-    Contact(id: 1, name: 'João Silva', email: 'joao@email.com', phone: '123456789',birthDate: '1990-03-22'),
-    Contact(id: 2, name: 'Maria Oliveira', email: 'maria@email.com', phone: '987654321',birthDate: '1985-07-15'),
+    Contact(id: 1, name: 'João Silva', email: 'joao@email.com', phone: '123456789', birthDate: '1990-03-22'),
+    Contact(id: 2, name: 'Maria Oliveira', email: 'maria@email.com', phone: '987654321', birthDate: '1985-07-15'),
   ];
 
   // Função para adicionar um novo contato
@@ -106,6 +106,12 @@ class _ContactScreenState extends State<ContactScreen> {
                           onChanged: (value) => phone = value,
                           decoration: InputDecoration(labelText: 'Telefone'),
                         ),
+                        SizedBox(height: 16),
+                        // Data de Nascimento (apenas exibição)
+                        Text(
+                          'Data de Nascimento: ${contact.birthDate != null ? contact.birthDate : 'Não definida'}',
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
                       ],
                     ),
                     actions: [
@@ -131,6 +137,7 @@ class _ContactScreenState extends State<ContactScreen> {
                               email: email,
                               phone: phone,
                               photo: updatedPhotoPath, // Atualiza a foto, se necessário
+                              birthDate: contact.birthDate, // Não altera a data de nascimento
                             ),
                           );
                         },

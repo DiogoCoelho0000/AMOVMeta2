@@ -3,10 +3,13 @@ import 'screens/contact_screen.dart';
 import 'screens/map_screen.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-
 void main() {
+  // Garanta a inicialização do Flutter
+  WidgetsFlutterBinding.ensureInitialized();
+
   // Inicializar o databaseFactory
   databaseFactory = databaseFactoryFfi;
+
   runApp(MyApp());
 }
 
@@ -20,9 +23,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (context) => HomeScreen(),
         '/contacts': (context) => ContactScreen(),
-        '/map': (context) => MapScreen(
-
-        ),
+        '/map': (context) => MapScreen(),
       },
     );
   }
