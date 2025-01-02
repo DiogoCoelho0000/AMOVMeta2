@@ -14,8 +14,8 @@ class ContactScreen extends StatefulWidget {
 class _ContactScreenState extends State<ContactScreen> {
   // Lista de contatos mock para testar
   List<Contact> _contacts = [
-    Contact(id: 1, name: 'João Silva', email: 'joao@email.com', phone: '123456789'),
-    Contact(id: 2, name: 'Maria Oliveira', email: 'maria@email.com', phone: '987654321'),
+    Contact(id: 1, name: 'João Silva', email: 'joao@email.com', phone: '123456789',birthDate: '1990-03-22'),
+    Contact(id: 2, name: 'Maria Oliveira', email: 'maria@email.com', phone: '987654321',birthDate: '1985-07-15'),
   ];
 
   // Função para adicionar um novo contato
@@ -115,6 +115,14 @@ class _ContactScreenState extends State<ContactScreen> {
                       ),
                       TextButton(
                         onPressed: () {
+                          // Verifique se os campos obrigatórios estão preenchidos
+                          if (name.isEmpty || email.isEmpty || phone.isEmpty) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              SnackBar(content: Text('Preencha todos os campos!')),
+                            );
+                            return;
+                          }
+
                           Navigator.pop(
                             ctx,
                             Contact(

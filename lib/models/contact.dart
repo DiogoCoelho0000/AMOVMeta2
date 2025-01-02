@@ -5,11 +5,10 @@ class Contact {
   final String name;
   final String email;
   final String phone;
-  final String? imagePath; // Caminho da imagem
+  final String? imagePath;
   final String? photo; // Novo atributo opcional para armazenar o caminho da foto
-  final String? birthDate;
-  final List<LocationModel>? locations; // Adicionar lista de localizações
-
+  final String? birthDate; // Data de nascimento
+  final List<LocationModel>? locations; // Lista de localizações
 
   Contact({
     this.id,
@@ -18,7 +17,7 @@ class Contact {
     required this.phone,
     this.imagePath,
     this.photo,
-    this.birthDate,
+    this.birthDate,  // Incluindo o campo de data de nascimento
     this.locations,
   });
 
@@ -29,7 +28,7 @@ class Contact {
       'email': email,
       'phone': phone,
       'imagePath': imagePath,
-      'birthDate': birthDate,
+      'birthDate': birthDate,  // Salvando a data de nascimento
     };
   }
 
@@ -40,9 +39,8 @@ class Contact {
       email: map['email'],
       phone: map['phone'],
       imagePath: map['imagePath'],
-      birthDate: map['birthDate'],
+      birthDate: map['birthDate'],  // Recuperando a data de nascimento
       locations: locations,
     );
   }
 }
-

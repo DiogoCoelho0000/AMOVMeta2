@@ -20,6 +20,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
   String _email = '';
   String _phone = '';
   String? _imagePath;
+  String? _birthDate; // Adicionando o campo de data de nascimento
 
   @override
   void initState() {
@@ -29,6 +30,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
       _email = widget.contact!.email;
       _phone = widget.contact!.phone;
       _imagePath = widget.contact!.imagePath;
+      _birthDate = widget.contact!.birthDate; // Carregar a data de nascimento
     }
   }
 
@@ -50,6 +52,20 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
     }
   }
 
+  Future<void> _selectBirthDate() async {
+    DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+    if (pickedDate != null) {
+      setState(() {
+        _birthDate = "${pickedDate.toLocal()}".split(' ')[0]; // Formato YYYY-MM-DD
+      });
+    }
+  }
+
   void _saveContact() {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
@@ -60,6 +76,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
         email: _email,
         phone: _phone,
         imagePath: _imagePath,
+        birthDate: _birthDate, // Salvar a data de nascimento
       );
 
       Navigator.pop(context, contact);
@@ -139,6 +156,18 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
                 decoration: InputDecoration(labelText: 'Telefone'),
                 validator: (value) => value == null || value.isEmpty ? 'Digite o telefone' : null,
                 onSaved: (value) => _phone = value!,
+              ),
+              SizedBox(height: 16),
+              // Campo de data de nascimento
+              TextFormField(
+                initialValue: _birthDate,
+                decoration: InputDecoration(
+                  labelText: 'Data de Nascimento',
+                  hintText: 'Selecione a data',
+                  suffixIcon: Icon(Icons.calendar_today),
+                ),
+                readOnly: true,
+                onTap: _selectBirthDate,
               ),
               SizedBox(height: 16),
               ElevatedButton(

@@ -24,7 +24,7 @@ class ContactCard extends StatelessWidget {
           child: contact.imagePath == null ? Icon(Icons.person) : null,
         ),
         title: Text(contact.name),
-        subtitle: Text(contact.phone),
+        subtitle: Text('${contact.phone}\n${contact.birthDate ?? ''}'), // Exibindo a data de nascimento
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -42,3 +42,4 @@ class ContactCard extends StatelessWidget {
     );
   }
 }
+

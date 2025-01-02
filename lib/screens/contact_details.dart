@@ -15,6 +15,7 @@ class _ContactDetailsState extends State<ContactDetails> {
   String _name = '';
   String _email = '';
   String _phone = '';
+  String? _birthDate;
 
   @override
   void initState() {
@@ -23,6 +24,7 @@ class _ContactDetailsState extends State<ContactDetails> {
       _name = widget.contact!.name;
       _email = widget.contact!.email;
       _phone = widget.contact!.phone;
+      _birthDate = widget.contact!.birthDate; // Carregando a data de nascimento
     }
   }
 
@@ -35,6 +37,7 @@ class _ContactDetailsState extends State<ContactDetails> {
         name: _name,
         email: _email,
         phone: _phone,
+        birthDate: _birthDate, // Salvando a data de nascimento
       );
 
       Navigator.pop(context, contact); // Retorna o contato criado ou editado
@@ -71,6 +74,11 @@ class _ContactDetailsState extends State<ContactDetails> {
                 validator: (value) =>
                 value == null || value.isEmpty ? 'Digite o telefone' : null,
                 onSaved: (value) => _phone = value!,
+              ),
+              TextFormField(
+                initialValue: _birthDate,
+                decoration: InputDecoration(labelText: 'Data de Nascimento'),
+                onSaved: (value) => _birthDate = value,
               ),
               SizedBox(height: 16),
               ElevatedButton(
