@@ -1,8 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/contact_card.dart';
-import 'contact_details.dart';
 import '../models/contact.dart';
 import 'contact_form.dart';
 
@@ -12,34 +13,63 @@ class ContactScreen extends StatefulWidget {
 }
 
 class _ContactScreenState extends State<ContactScreen> {
-  // Lista de contatos mock para testar
-  List<Contact> _contacts = [
-    Contact(id: 1, name: 'João Silva', email: 'joao@email.com', phone: '123456789', birthDate: '1990-03-22'),
-    Contact(id: 2, name: 'Maria Oliveira', email: 'maria@email.com', phone: '987654321', birthDate: '1985-07-15'),
-  ];
+  List<Contact> _contacts = [];
 
-  // Função para adicionar um novo contato
+  @override
+  void initState() {
+    super.initState();
+    _loadContacts(); // Carregar contatos salvos
+  }
+
+  /// Carregar contatos do SharedPreferences
+  Future<void> _loadContacts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? contactsString = prefs.getString('contacts');
+    if (contactsString != null) {
+      List<dynamic> decodedContacts = jsonDecode(contactsString);
+      setState(() {
+        _contacts = decodedContacts.map((e) => Contact.fromJson(e)).toList();
+      });
+    }
+  }
+
+  /// Salvar contatos no SharedPreferences
+  Future<void> _saveContacts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String encodedContacts = jsonEncode(_contacts.map((e) => e.toJson()).toList());
+    await prefs.setString('contacts', encodedContacts);
+  }
+
+  /// Adicionar um novo contato
   void _addContact(Contact contact) {
     setState(() {
       _contacts.add(contact);
+      if (_contacts.length > 10) {
+        _contacts.removeAt(0); // Remove o contato mais antigo (primeiro da lista)
+      }
     });
+    _saveContacts(); // Salvar após adicionar
   }
 
-  // Função para editar um contato
+
+  /// Editar um contato
   void _editContact(Contact contact, int index) {
     setState(() {
       _contacts[index] = contact;
     });
+    _saveContacts();
   }
 
-  // Função para excluir um contato
+
+  /// Excluir um contato
   void _deleteContact(int index) {
     setState(() {
       _contacts.removeAt(index);
     });
+    _saveContacts(); // Salvar após excluir
   }
 
-  // Função para selecionar ou alterar uma foto para um contato
+  /// Selecionar ou alterar a foto do contato
   Future<String?> _pickImage() async {
     final ImagePicker picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
@@ -61,8 +91,7 @@ class _ContactScreenState extends State<ContactScreen> {
           return ContactCard(
             contact: contact,
             onEdit: () async {
-              // Editar contato
-              String? updatedPhotoPath = contact.photo; // Manter foto atual, se não for alterada
+              String? updatedPhotoPath = contact.imagePath;
               final result = await showDialog<Contact>(
                 context: context,
                 builder: (ctx) {
@@ -78,7 +107,7 @@ class _ContactScreenState extends State<ContactScreen> {
                         GestureDetector(
                           onTap: () async {
                             updatedPhotoPath = await _pickImage();
-                            setState(() {}); // Atualiza o estado para exibir a nova imagem no AlertDialog
+                            setState(() {}); // Atualiza a imagem no AlertDialog
                           },
                           child: CircleAvatar(
                             radius: 40,
@@ -107,21 +136,19 @@ class _ContactScreenState extends State<ContactScreen> {
                           decoration: InputDecoration(labelText: 'Telefone'),
                         ),
                         SizedBox(height: 16),
-                        // Data de Nascimento (apenas exibição)
                         Text(
-                          'Data de Nascimento: ${contact.birthDate != null ? contact.birthDate : 'Não definida'}',
+                          'Data de Nascimento: ${contact.birthDate ?? 'Não definida'}',
                           style: TextStyle(fontSize: 16, color: Colors.grey),
                         ),
                       ],
                     ),
                     actions: [
                       TextButton(
-                        onPressed: () => Navigator.pop(ctx), // Cancelar edição
+                        onPressed: () => Navigator.pop(ctx),
                         child: Text('Cancelar'),
                       ),
                       TextButton(
                         onPressed: () {
-                          // Verifique se os campos obrigatórios estão preenchidos
                           if (name.isEmpty || email.isEmpty || phone.isEmpty) {
                             ScaffoldMessenger.of(ctx).showSnackBar(
                               SnackBar(content: Text('Preencha todos os campos!')),
@@ -136,8 +163,8 @@ class _ContactScreenState extends State<ContactScreen> {
                               name: name,
                               email: email,
                               phone: phone,
-                              photo: updatedPhotoPath, // Atualiza a foto, se necessário
-                              birthDate: contact.birthDate, // Não altera a data de nascimento
+                              imagePath: updatedPhotoPath,
+                              birthDate: contact.birthDate,
                             ),
                           );
                         },
@@ -149,28 +176,27 @@ class _ContactScreenState extends State<ContactScreen> {
               );
 
               if (result != null) {
-                _editContact(result, index); // Atualiza contato na lista
+                _editContact(result, index);
               }
             },
             onDelete: () {
-              _deleteContact(index); // Exclui o contato da lista
+              _deleteContact(index);
             },
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          // Adicionar novo contato
           final result = await Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => ContactFormScreen()),
           );
           if (result != null) {
-            _addContact(result); // Adiciona o novo contato à lista
+            _addContact(result);
           }
         },
-        child: Icon(Icons.add), // Ícone de "+", padrão para adicionar
-        backgroundColor: Colors.blue, // Cor do botão
+        child: Icon(Icons.add),
+        backgroundColor: Colors.blue,
       ),
     );
   }

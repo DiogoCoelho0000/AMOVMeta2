@@ -6,7 +6,7 @@ class Contact {
   final String email;
   final String phone;
   final String? imagePath;
-  final String? photo; // Novo atributo opcional para armazenar o caminho da foto
+  //final String? photo; // Novo atributo opcional para armazenar o caminho da foto
   final String? birthDate; // Data de nascimento
   final List<LocationModel>? locations; // Lista de localizações
 
@@ -16,11 +16,12 @@ class Contact {
     required this.email,
     required this.phone,
     this.imagePath,
-    this.photo,
-    this.birthDate,  // Incluindo o campo de data de nascimento
+    //this.photo,
+    this.birthDate,
     this.locations,
   });
 
+  // Método para converter o objeto em Map
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -28,19 +29,35 @@ class Contact {
       'email': email,
       'phone': phone,
       'imagePath': imagePath,
-      'birthDate': birthDate,  // Salvando a data de nascimento
+      //'photo': photo, // Salvando o caminho da foto
+      'birthDate': birthDate, // Salvando a data de nascimento
+      'locations': locations?.map((location) => location.toMap()).toList(), // Serializando localizações
     };
   }
 
-  factory Contact.fromMap(Map<String, dynamic> map, {List<LocationModel>? locations}) {
+  // Método para criar um objeto a partir de um Map
+  factory Contact.fromMap(Map<String, dynamic> map) {
     return Contact(
       id: map['id'],
       name: map['name'],
       email: map['email'],
       phone: map['phone'],
       imagePath: map['imagePath'],
-      birthDate: map['birthDate'],  // Recuperando a data de nascimento
-      locations: locations,
+      //photo: map['photo'], // Recuperando o caminho da foto
+      birthDate: map['birthDate'], // Recuperando a data de nascimento
+      locations: map['locations'] != null
+          ? (map['locations'] as List).map((e) => LocationModel.fromMap(e)).toList()
+          : null, // Desserializando localizações
     );
+  }
+
+  // Método para converter o objeto em JSON
+  Map<String, dynamic> toJson() {
+    return toMap(); // O mesmo que o método toMap
+  }
+
+  // Método para criar um objeto a partir de JSON
+  factory Contact.fromJson(Map<String, dynamic> json) {
+    return Contact.fromMap(json);
   }
 }

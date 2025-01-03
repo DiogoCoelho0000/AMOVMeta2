@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/contact.dart';
+import 'package:permission_handler/permission_handler.dart';
+
 
 class ContactFormScreen extends StatefulWidget {
   final Contact? contact;
@@ -25,30 +27,61 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
   @override
   void initState() {
     super.initState();
+    _checkPermissions();
+
     if (widget.contact != null) {
       _name = widget.contact!.name;
       _email = widget.contact!.email;
       _phone = widget.contact!.phone;
       _imagePath = widget.contact!.imagePath;
-      _birthDate = widget.contact!.birthDate; // Carregar a data de nascimento
+      _birthDate = widget.contact!.birthDate;
+    }
+  }
+
+  Future<void> _checkPermissions() async {
+    // Verificar permissões (no Android, as permissões de câmera/galeria precisam ser concedidas)
+    if (Platform.isAndroid) {
+      final cameraPermission = await Permission.camera.request();
+      final storagePermission = await Permission.storage.request();
+
+      if (cameraPermission.isDenied || storagePermission.isDenied) {
+        // Permissões negadas
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Permissões de câmera e galeria são necessárias.')),
+        );
+      }
     }
   }
 
   Future<void> _pickImage() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _imagePath = pickedFile.path;
-      });
+    try {
+      final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+      if (pickedFile != null) {
+        setState(() {
+          _imagePath = pickedFile.path;
+        });
+      }
+    } catch (e) {
+      print("Erro ao acessar a galeria: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao acessar a galeria.')),
+      );
     }
   }
 
   Future<void> _takePhoto() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.camera);
-    if (pickedFile != null) {
-      setState(() {
-        _imagePath = pickedFile.path;
-      });
+    try {
+      final pickedFile = await _picker.pickImage(source: ImageSource.camera);
+      if (pickedFile != null) {
+        setState(() {
+          _imagePath = pickedFile.path;
+        });
+      }
+    } catch (e) {
+      print("Erro ao acessar a câmera: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao acessar a câmera.')),
+      );
     }
   }
 
@@ -68,6 +101,13 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
 
   void _saveContact() {
     if (_formKey.currentState!.validate()) {
+      if (_imagePath == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Por favor, selecione ou tire uma foto.')),
+        );
+        return;
+      }
+
       _formKey.currentState!.save();
 
       final contact = Contact(
@@ -76,7 +116,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
         email: _email,
         phone: _phone,
         imagePath: _imagePath,
-        birthDate: _birthDate, // Salvar a data de nascimento
+        birthDate: _birthDate,
       );
 
       Navigator.pop(context, contact);
