@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/contact.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../utils/FileStorage_helper.dart';
 
 class ContactFormScreen extends StatefulWidget {
   final Contact? contact;
@@ -24,10 +25,20 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
   String? _imagePath;
   String? _birthDate; // Adicionando o campo de data de nascimento
 
+  List<Contact> contatos = [];  // Declarar a lista de contatos
+
   @override
   void initState() {
     super.initState();
     _checkPermissions();
+
+    // Carregar contatos salvos no arquivo
+    FileStorageHelper().carregarContatos().then((loadedContacts) {
+      setState(() {
+        contatos = loadedContacts;  // Lista de contatos carregada corretamente
+        print("Contatos carregados: $contatos");  // Verificando os contatos carregados
+      });
+    });
 
     if (widget.contact != null) {
       _name = widget.contact!.name;
@@ -38,7 +49,6 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
     }
   }
 
-  // Função para verificar as permissões de localização
   Future<Position?> _getCurrentLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
@@ -52,7 +62,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        return null; // Permissão negada
+        return null;
       }
     }
 
@@ -66,16 +76,13 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
     return await Geolocator.getCurrentPosition();
   }
 
-  // Função para verificar permissões de câmera e armazenamento
   Future<void> _checkPermissions() async {
-    // Verificar permissões (no Android, as permissões de câmera/galeria e localização precisam ser concedidas)
     if (Platform.isAndroid) {
       final cameraPermission = await Permission.camera.request();
       final storagePermission = await Permission.storage.request();
       final locationPermission = await Permission.location.request();
 
       if (cameraPermission.isDenied || storagePermission.isDenied || locationPermission.isDenied) {
-        // Permissões negadas
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Permissões de câmera, galeria e localização são necessárias.')),
         );
@@ -83,7 +90,6 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
     }
   }
 
-  // Função para pegar a imagem da galeria
   Future<void> _pickImage() async {
     try {
       final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
@@ -93,14 +99,12 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
         });
       }
     } catch (e) {
-      print("Erro ao acessar a galeria: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erro ao acessar a galeria.')),
       );
     }
   }
 
-  // Função para tirar a foto com a câmera
   Future<void> _takePhoto() async {
     try {
       final pickedFile = await _picker.pickImage(source: ImageSource.camera);
@@ -110,14 +114,12 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
         });
       }
     } catch (e) {
-      print("Erro ao acessar a câmera: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erro ao acessar a câmera.')),
       );
     }
   }
 
-  // Função para selecionar a data de nascimento
   Future<void> _selectBirthDate() async {
     DateTime? pickedDate = await showDatePicker(
       context: context,
@@ -127,12 +129,11 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
     );
     if (pickedDate != null) {
       setState(() {
-        _birthDate = "${pickedDate.toLocal()}".split(' ')[0]; // Formato YYYY-MM-DD
+        _birthDate = "${pickedDate.toLocal()}".split(' ')[0];
       });
     }
   }
 
-  // Função para salvar o contato
   void _saveContact() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
@@ -151,12 +152,23 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
         longitude: position.longitude,
       );
 
+      List<Contact> contatos = await FileStorageHelper().carregarContatos();
+      if (widget.contact == null) {
+        contatos.add(contact);
+      } else {
+        int index = contatos.indexWhere((c) => c.id == widget.contact?.id);
+        if (index != -1) {
+          contatos[index] = contact;
+        }
+      }
+
+      await FileStorageHelper().salvarContatos(contatos);
+
       Navigator.pop(context, contact);
     }
   }
 
-
-@override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -168,48 +180,43 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
           key: _formKey,
           child: ListView(
             children: [
-              // Exibir imagem ou botão para selecionar/tirar uma foto
-              Center(
-                child: GestureDetector(
-                  onTap: () async {
-                    // Escolher entre galeria ou câmera
-                    showModalBottomSheet(
-                      context: context,
-                      builder: (context) {
-                        return SafeArea(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              ListTile(
-                                leading: Icon(Icons.photo),
-                                title: Text('Escolher da Galeria'),
-                                onTap: () {
-                                  _pickImage();
-                                  Navigator.pop(context);
-                                },
-                              ),
-                              ListTile(
-                                leading: Icon(Icons.camera_alt),
-                                title: Text('Tirar Foto'),
-                                onTap: () {
-                                  _takePhoto();
-                                  Navigator.pop(context);
-                                },
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    );
-                  },
-                  child: CircleAvatar(
-                    radius: 60,
-                    backgroundImage:
-                    _imagePath != null ? FileImage(File(_imagePath!)) : null,
-                    child: _imagePath == null
-                        ? Icon(Icons.camera_alt, size: 40)
-                        : null,
-                  ),
+              GestureDetector(
+                onTap: () async {
+                  showModalBottomSheet(
+                    context: context,
+                    builder: (context) {
+                      return SafeArea(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ListTile(
+                              leading: Icon(Icons.photo),
+                              title: Text('Escolher da Galeria'),
+                              onTap: () {
+                                _pickImage();
+                                Navigator.pop(context);
+                              },
+                            ),
+                            ListTile(
+                              leading: Icon(Icons.camera_alt),
+                              title: Text('Tirar Foto'),
+                              onTap: () {
+                                _takePhoto();
+                                Navigator.pop(context);
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+                child: CircleAvatar(
+                  radius: 60,
+                  backgroundImage: _imagePath != null ? FileImage(File(_imagePath!)) : null,
+                  child: _imagePath == null
+                      ? Icon(Icons.camera_alt, size: 40)
+                      : null,
                 ),
               ),
               SizedBox(height: 16),
@@ -231,7 +238,6 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
                 onSaved: (value) => _phone = value!,
               ),
               SizedBox(height: 16),
-              // Campo de data de nascimento
               TextFormField(
                 initialValue: _birthDate,
                 decoration: InputDecoration(
