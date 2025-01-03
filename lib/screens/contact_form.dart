@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/contact.dart';
 import 'package:permission_handler/permission_handler.dart';
-
 
 class ContactFormScreen extends StatefulWidget {
   final Contact? contact;
@@ -38,21 +38,52 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
     }
   }
 
+  // Função para verificar as permissões de localização
+  Future<Position?> _getCurrentLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Por favor, ative os serviços de localização.')),
+      );
+      return null;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return null; // Permissão negada
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('As permissões de localização estão permanentemente negadas.')),
+      );
+      return null;
+    }
+
+    return await Geolocator.getCurrentPosition();
+  }
+
+  // Função para verificar permissões de câmera e armazenamento
   Future<void> _checkPermissions() async {
-    // Verificar permissões (no Android, as permissões de câmera/galeria precisam ser concedidas)
+    // Verificar permissões (no Android, as permissões de câmera/galeria e localização precisam ser concedidas)
     if (Platform.isAndroid) {
       final cameraPermission = await Permission.camera.request();
       final storagePermission = await Permission.storage.request();
+      final locationPermission = await Permission.location.request();
 
-      if (cameraPermission.isDenied || storagePermission.isDenied) {
+      if (cameraPermission.isDenied || storagePermission.isDenied || locationPermission.isDenied) {
         // Permissões negadas
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Permissões de câmera e galeria são necessárias.')),
+          SnackBar(content: Text('Permissões de câmera, galeria e localização são necessárias.')),
         );
       }
     }
   }
 
+  // Função para pegar a imagem da galeria
   Future<void> _pickImage() async {
     try {
       final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
@@ -69,6 +100,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
     }
   }
 
+  // Função para tirar a foto com a câmera
   Future<void> _takePhoto() async {
     try {
       final pickedFile = await _picker.pickImage(source: ImageSource.camera);
@@ -85,6 +117,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
     }
   }
 
+  // Função para selecionar a data de nascimento
   Future<void> _selectBirthDate() async {
     DateTime? pickedDate = await showDatePicker(
       context: context,
@@ -99,16 +132,13 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
     }
   }
 
-  void _saveContact() {
+  // Função para salvar o contato
+  void _saveContact() async {
     if (_formKey.currentState!.validate()) {
-      if (_imagePath == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Por favor, selecione ou tire uma foto.')),
-        );
-        return;
-      }
-
       _formKey.currentState!.save();
+
+      final position = await _getCurrentLocation();
+      if (position == null) return;
 
       final contact = Contact(
         id: widget.contact?.id,
@@ -117,13 +147,16 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
         phone: _phone,
         imagePath: _imagePath,
         birthDate: _birthDate,
+        latitude: position.latitude,
+        longitude: position.longitude,
       );
 
       Navigator.pop(context, contact);
     }
   }
 
-  @override
+
+@override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(

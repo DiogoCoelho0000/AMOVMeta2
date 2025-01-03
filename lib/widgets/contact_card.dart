@@ -16,6 +16,9 @@ class ContactCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),  // Espaçamento para o Card
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),  // Bordas arredondadas
+      elevation: 4,  // Sombra leve
       child: ListTile(
         leading: CircleAvatar(
           backgroundImage: contact.imagePath != null
@@ -23,8 +26,29 @@ class ContactCard extends StatelessWidget {
               : null,
           child: contact.imagePath == null ? Icon(Icons.person) : null,
         ),
-        title: Text(contact.name),
-        subtitle: Text('${contact.phone}\n${contact.birthDate ?? ''}'), // Exibindo a data de nascimento
+        title: Text(
+          contact.name,
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${contact.phone}',
+              style: TextStyle(fontSize: 16),
+            ),
+            if (contact.birthDate != null)
+              Text(
+                'Nascimento: ${contact.birthDate}',
+                style: TextStyle(fontSize: 14),
+              ),
+            if (contact.latitude != null && contact.longitude != null)
+              Text(
+                'Localização: ${contact.latitude}, ${contact.longitude}',
+                style: TextStyle(fontSize: 14, color: Colors.blue),
+              ),
+          ],
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -42,4 +66,3 @@ class ContactCard extends StatelessWidget {
     );
   }
 }
-

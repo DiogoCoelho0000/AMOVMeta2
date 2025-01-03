@@ -1,14 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:location/location.dart';
-
-class LocationModel {
-  final double latitude;
-  final double longitude;
-
-  LocationModel({required this.latitude, required this.longitude});
-}
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/location.dart';
 
 class MapScreen extends StatefulWidget {
   @override
@@ -29,27 +26,80 @@ class _MapScreenState extends State<MapScreen> {
   void initState() {
     super.initState();
     _location = Location();
-    _getInitialLocation();  // Obter a localização inicial
-    _locationStream = _location.onLocationChanged;  // Stream para atualizar a localização continuamente
+    _getInitialLocation();
+
+    // Carregar localizações armazenadas em JSON
+    carregarLocalizacoes().then((loadedLocations) {
+      setState(() {
+        localizacoes = loadedLocations;
+      });
+    });
+
+    _locationStream = _location.onLocationChanged;
 
     // Escutar as atualizações da localização
     _locationStream.listen((LocationData currentLocation) {
       setState(() {
         _latitude = currentLocation.latitude!;
         _longitude = currentLocation.longitude!;
-        adicionarLocalizacao(_latitude, _longitude);  // Armazenar a localização
+        adicionarLocalizacao(_latitude, _longitude, contactId: ''); // Armazenar a localização
       });
     });
+  }
+
+  Future<void> salvarLocalizacoes(List<LocationModel> localizacoes) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> jsonList = localizacoes.map((loc) => jsonEncode(loc.toMap())).toList();
+    await prefs.setStringList('localizacoes', jsonList);
+  }
+
+  Future<List<LocationModel>> carregarLocalizacoes() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonList = prefs.getStringList('localizacoes') ?? [];
+    return jsonList.map((json) {
+      try {
+        return LocationModel.fromMap(jsonDecode(json));
+      } catch (e) {
+        print("Erro ao carregar localização: $e");
+        return null;
+      }
+    }).whereType<LocationModel>().toList();
+  }
+  
+  void associarLocalizacaoAoContato(String contactId, double latitude, double longitude) {
+    adicionarLocalizacao(latitude, longitude, contactId: contactId);
   }
 
   // Função para obter a localização inicial
   Future<void> _getInitialLocation() async {
     try {
+      bool _serviceEnabled;
+      PermissionStatus _permissionGranted;
+
+      // Verificar se o serviço está habilitado
+      _serviceEnabled = await _location.serviceEnabled();
+      if (!_serviceEnabled) {
+        _serviceEnabled = await _location.requestService();
+        if (!_serviceEnabled) {
+          throw Exception("Serviço de localização não habilitado.");
+        }
+      }
+
+      // Verificar permissões
+      _permissionGranted = await _location.hasPermission();
+      if (_permissionGranted == PermissionStatus.denied) {
+        _permissionGranted = await _location.requestPermission();
+        if (_permissionGranted != PermissionStatus.granted) {
+          throw Exception("Permissão de localização negada.");
+        }
+      }
+
+      // Obter localização inicial
       final locationData = await _location.getLocation();
       setState(() {
         _latitude = locationData.latitude!;
         _longitude = locationData.longitude!;
-        _isLocationReady = true;  // A localização inicial foi obtida
+        _isLocationReady = true;
       });
     } catch (e) {
       print("Erro ao obter a localização inicial: $e");
@@ -57,10 +107,17 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   // Função para armazenar a localização na lista
-  void adicionarLocalizacao(double latitude, double longitude) {
+  void adicionarLocalizacao(double latitude, double longitude, {required String contactId}) {
     final novaLocalizacao = LocationModel(latitude: latitude, longitude: longitude);
-    localizacoes.add(novaLocalizacao);  // Armazenando na lista
-    print("Localização armazenada: $latitude, $longitude");
+    setState(() {
+      localizacoes.add(novaLocalizacao);
+
+      // Limitar a 100 localizações
+      if (localizacoes.length > 10) {
+        localizacoes.removeAt(0);
+      }
+    });
+    salvarLocalizacoes(localizacoes);
   }
 
   @override
@@ -72,7 +129,7 @@ class _MapScreenState extends State<MapScreen> {
           title: Text('Mapa - OpenStreetMap'),
         ),
         body: Center(
-          child: CircularProgressIndicator(),
+          child:CircularProgressIndicator(),
         ),
       );
     }
@@ -94,31 +151,40 @@ class _MapScreenState extends State<MapScreen> {
           ),
           MarkerLayer(
             markers: [
-              // Marcador para a localização atual
+              // Marcador da localização atual
               Marker(
                 point: LatLng(_latitude, _longitude),
                 width: 80.0,
                 height: 80.0,
-                builder: (ctx) => Container(
-                  child: Icon(
-                    Icons.location_on,
-                    color: Colors.blue,
-                    size: 40,
-                  ),
+                builder: (ctx) => Icon(
+                  Icons.location_on,
+                  color: Colors.blue,
+                  size: 40,
                 ),
               ),
-              // Marcadores para o histórico de localizações
-              ...localizacoes.map((localizacao) {
+              // Marcadores para localizações de contatos
+              ...localizacoes.where((loc) => loc.contactId != null).map((loc) {
                 return Marker(
-                  point: LatLng(localizacao.latitude, localizacao.longitude),
+                  point: LatLng(loc.latitude, loc.longitude),
                   width: 80.0,
                   height: 80.0,
-                  builder: (ctx) => Container(
-                    child: Icon(
-                      Icons.location_on,
-                      color: Colors.red,
-                      size: 40,
-                    ),
+                  builder: (ctx) => Icon(
+                    Icons.location_on,
+                    color: Colors.green,
+                    size: 40,
+                  ),
+                );
+              }).toList(),
+              // Marcadores para outras localizações
+              ...localizacoes.where((loc) => loc.contactId == null).map((loc) {
+                return Marker(
+                  point: LatLng(loc.latitude, loc.longitude),
+                  width: 80.0,
+                  height: 80.0,
+                  builder: (ctx) => Icon(
+                    Icons.location_on,
+                    color: Colors.red,
+                    size: 40,
                   ),
                 );
               }).toList(),
