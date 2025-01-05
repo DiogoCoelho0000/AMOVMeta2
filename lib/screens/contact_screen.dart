@@ -5,7 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/contact_card.dart';
 import '../models/contact.dart';
-import 'contact_form.dart';
+import '../utils/contact_form.dart';
 
 class ContactScreen extends StatefulWidget {
   @override

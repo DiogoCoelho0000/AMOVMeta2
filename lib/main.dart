@@ -5,7 +5,6 @@ import 'screens/map_screen.dart';
 void main() {
   // Garanta a inicialização do Flutter
   WidgetsFlutterBinding.ensureInitialized();
-
   runApp(MyApp());
 }
 
