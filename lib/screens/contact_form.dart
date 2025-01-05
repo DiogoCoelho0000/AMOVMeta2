@@ -215,7 +215,13 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
               TextFormField(
                 initialValue: _phone,
                 decoration: InputDecoration(labelText: 'Telefone'),
-                validator: (value) => value == null || value.isEmpty ? 'Digite o telefone' : null,
+                keyboardType: TextInputType.phone, // Exibe o teclado numérico
+                validator: (value) {
+                  if (value == null || value.isEmpty) return 'Digite o telefone';
+                  final regex = RegExp(r'^[0-9]{9}$'); // Valida se tem exatamente 9 números
+                  if (!regex.hasMatch(value)) return 'Digite um telefone válido com 9 dígitos';
+                  return null;
+                },
                 onSaved: (value) => _phone = value!,
               ),
               SizedBox(height: 16),

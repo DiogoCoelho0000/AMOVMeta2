@@ -18,7 +18,7 @@ class _ContactScreenState extends State<ContactScreen> {
   @override
   void initState() {
     super.initState();
-    _loadContacts(); // Carregar contatos salvos
+    _loadContacts();
   }
 
   /// Carregar contatos do SharedPreferences
