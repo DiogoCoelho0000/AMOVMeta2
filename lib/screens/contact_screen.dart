@@ -55,9 +55,13 @@ class _ContactScreenState extends State<ContactScreen> {
   /// Editar um contato
   void _editContact(Contact contact, int index) {
     setState(() {
-      _contacts[index] = contact;
+      _contacts.removeAt(index); // Remove o contato da posição atual
+      _contacts.add(contact); // Adiciona o contato ao final da lista
+      if (_contacts.length > 10) {
+        _contacts.removeAt(0); // Remove o mais antigo se ultrapassar 10
+      }
     });
-    _saveContacts();
+    _saveContacts(); // Salva os contatos atualizados
   }
 
 

@@ -2,8 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
-import '../models/contact.dart';
+import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../models/contact.dart';
 import '../utils/FileStorage_helper.dart';
 
 class ContactFormScreen extends StatefulWidget {
@@ -23,22 +24,12 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
   String _email = '';
   String _phone = '';
   String? _imagePath;
-  String? _birthDate; // Adicionando o campo de data de nascimento
-
-  List<Contact> contatos = [];  // Declarar a lista de contatos
+  String? _birthDate;
 
   @override
   void initState() {
     super.initState();
     _checkPermissions();
-
-    // Carregar contatos salvos no arquivo
-    FileStorageHelper().carregarContatos().then((loadedContacts) {
-      setState(() {
-        contatos = loadedContacts;  // Lista de contatos carregada corretamente
-        print("Contatos carregados: $contatos");  // Verificando os contatos carregados
-      });
-    });
 
     if (widget.contact != null) {
       _name = widget.contact!.name;
@@ -49,73 +40,35 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
     }
   }
 
-  Future<Position?> _getCurrentLocation() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
+  Future<void> _checkPermissions() async {
+    Map<Permission, PermissionStatus> statuses = await [
+      Permission.camera,
+      Permission.photos,
+      Permission.location,
+    ].request();
+
+    if (statuses.values.any((status) => !status.isGranted)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Por favor, ative os serviços de localização.')),
+        SnackBar(content: Text('Permissões de câmera, galeria e localização são necessárias.')),
       );
-      return null;
     }
-
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        return null;
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('As permissões de localização estão permanentemente negadas.')),
-      );
-      return null;
-    }
-
-    return await Geolocator.getCurrentPosition();
   }
 
-  Future<void> _checkPermissions() async {
-    if (Platform.isAndroid) {
-      final cameraPermission = await Permission.camera.request();
-      final storagePermission = await Permission.storage.request();
-      final locationPermission = await Permission.location.request();
-
-      if (cameraPermission.isDenied || storagePermission.isDenied || locationPermission.isDenied) {
+  Future<void> _pickImage({required ImageSource source}) async {
+    try {
+      final pickedFile = await _picker.pickImage(source: source);
+      if (pickedFile != null) {
+        setState(() {
+          _imagePath = pickedFile.path;
+        });
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Permissões de câmera, galeria e localização são necessárias.')),
+          SnackBar(content: Text('Nenhuma imagem selecionada.')),
         );
       }
-    }
-  }
-
-  Future<void> _pickImage() async {
-    try {
-      final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-      if (pickedFile != null) {
-        setState(() {
-          _imagePath = pickedFile.path;
-        });
-      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao acessar a galeria.')),
-      );
-    }
-  }
-
-  Future<void> _takePhoto() async {
-    try {
-      final pickedFile = await _picker.pickImage(source: ImageSource.camera);
-      if (pickedFile != null) {
-        setState(() {
-          _imagePath = pickedFile.path;
-        });
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao acessar a câmera.')),
+        SnackBar(content: Text('Erro ao acessar a ${source == ImageSource.gallery ? "galeria" : "câmera"}.')),
       );
     }
   }
@@ -129,14 +82,38 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
     );
     if (pickedDate != null) {
       setState(() {
-        _birthDate = "${pickedDate.toLocal()}".split(' ')[0];
+        _birthDate = DateFormat('dd/MM/yyyy').format(pickedDate);
       });
     }
+  }
+
+  Future<Position?> _getCurrentLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Por favor, ative os serviços de localização.')),
+      );
+      return null;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Permissões de localização negadas.')),
+      );
+      return null;
+    }
+
+    return await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
   }
 
   void _saveContact() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Obtendo localização...'), duration: Duration(seconds: 2)),
+      );
 
       final position = await _getCurrentLocation();
       if (position == null) return;
@@ -193,7 +170,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
                               leading: Icon(Icons.photo),
                               title: Text('Escolher da Galeria'),
                               onTap: () {
-                                _pickImage();
+                                _pickImage(source: ImageSource.gallery);
                                 Navigator.pop(context);
                               },
                             ),
@@ -201,7 +178,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
                               leading: Icon(Icons.camera_alt),
                               title: Text('Tirar Foto'),
                               onTap: () {
-                                _takePhoto();
+                                _pickImage(source: ImageSource.camera);
                                 Navigator.pop(context);
                               },
                             ),
@@ -214,9 +191,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
                 child: CircleAvatar(
                   radius: 60,
                   backgroundImage: _imagePath != null ? FileImage(File(_imagePath!)) : null,
-                  child: _imagePath == null
-                      ? Icon(Icons.camera_alt, size: 40)
-                      : null,
+                  child: _imagePath == null ? Icon(Icons.camera_alt, size: 40) : null,
                 ),
               ),
               SizedBox(height: 16),
@@ -229,6 +204,12 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
               TextFormField(
                 initialValue: _email,
                 decoration: InputDecoration(labelText: 'E-mail'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) return 'Digite o e-mail';
+                  final regex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+                  if (!regex.hasMatch(value)) return 'Digite um e-mail válido';
+                  return null;
+                },
                 onSaved: (value) => _email = value ?? '',
               ),
               TextFormField(
